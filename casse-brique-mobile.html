@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>CASSE-BRIQUE</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
+
+  :root {
+    --bg: #05050f;
+    --panel: #0a0a1a;
+    --accent: #00f5d4;
+    --accent2: #f5009b;
+    --accent3: #ffe600;
+    --text: #e0e0ff;
+    --glow: 0 0 12px #00f5d4cc, 0 0 32px #00f5d455;
+    --glow2: 0 0 12px #f5009bcc, 0 0 32px #f5009b55;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    overflow: hidden;
+    touch-action: none;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      linear-gradient(rgba(0,245,212,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,245,212,0.03) 1px, transparent 1px);
+    background-size: 36px 36px;
+    pointer-events: none; z-index: 0;
+  }
+
+  #wrapper {
+    position: relative; z-index: 1;
+    width: 100%; height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 10px 0 0;
+  }
+
+  h1 {
+    font-family: 'Orbitron', monospace;
+    font-weight: 900;
+    font-size: clamp(1rem, 5vw, 1.6rem);
+    letter-spacing: 0.25em;
+    color: var(--accent);
+    text-shadow: var(--glow);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  #hud {
+    display: flex;
+    gap: clamp(12px, 4vw, 32px);
+    font-size: clamp(0.65rem, 2.5vw, 0.8rem);
+    letter-spacing: 0.12em;
+    margin-bottom: 6px;
+  }
+
+  #hud strong {
+    color: var(--accent3);
+    text-shadow: 0 0 8px var(--accent3);
+  }
+
+  #canvas-wrap {
+    position: relative;
+    border: 1px solid rgba(0,245,212,0.25);
+    box-shadow: 0 0 0 1px rgba(0,245,212,0.08), var(--glow), inset 0 0 40px rgba(0,0,0,0.8);
+    touch-action: none;
+  }
+
+  canvas {
+    display: block;
+    background: var(--panel);
+    touch-action: none;
+  }
+
+  /* ── OVERLAY ── */
+  #overlay {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: rgba(5,5,15,0.90);
+    backdrop-filter: blur(6px);
+    gap: 16px;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.4s;
+    padding: 20px;
+  }
+  #overlay.visible { opacity: 1; pointer-events: all; }
+
+  #overlay-title {
+    font-family: 'Orbitron', monospace;
+    font-weight: 900;
+    font-size: clamp(1.4rem, 7vw, 2.2rem);
+    letter-spacing: 0.15em;
+    text-align: center;
+  }
+  #overlay-title.win  { color: var(--accent);  text-shadow: var(--glow); }
+  #overlay-title.lose { color: var(--accent2); text-shadow: var(--glow2); }
+
+  #overlay-msg {
+    font-size: clamp(0.7rem, 3vw, 0.9rem);
+    color: var(--text); opacity: 0.8;
+    letter-spacing: 0.1em;
+    text-align: center; line-height: 1.9;
+  }
+
+  #code-reveal {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(1rem, 5vw, 1.5rem);
+    font-weight: 700;
+    letter-spacing: 0.25em;
+    color: var(--accent3);
+    text-shadow: 0 0 16px var(--accent3), 0 0 40px var(--accent3);
+    background: rgba(255,230,0,0.07);
+    border: 1px solid rgba(255,230,0,0.3);
+    padding: 12px 24px;
+    display: none;
+    animation: pulse-code 1.5s ease-in-out infinite;
+  }
+  @keyframes pulse-code {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.55; }
+  }
+
+  #btn {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(0.7rem, 3vw, 0.9rem);
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    padding: 14px 36px;
+    cursor: pointer;
+    box-shadow: var(--glow);
+    transition: all 0.2s;
+    min-width: 160px;
+  }
+  #btn:active {
+    background: var(--accent);
+    color: var(--bg);
+  }
+
+  /* ── TOUCH CONTROLS ── */
+  #controls {
+    display: flex;
+    gap: 16px;
+    margin-top: 10px;
+    width: 100%;
+    max-width: 400px;
+    padding: 0 16px;
+  }
+
+  .ctrl-btn {
+    flex: 1;
+    height: 64px;
+    background: rgba(0,245,212,0.06);
+    border: 1px solid rgba(0,245,212,0.25);
+    border-radius: 8px;
+    color: var(--accent);
+    font-family: 'Orbitron', monospace;
+    font-size: 1.5rem;
+    font-weight: 900;
+    cursor: pointer;
+    user-select: none;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: var(--glow);
+    transition: background 0.1s;
+    touch-action: none;
+  }
+  .ctrl-btn:active, .ctrl-btn.pressed {
+    background: rgba(0,245,212,0.18);
+  }
+
+  #launch-btn {
+    height: 52px;
+    background: rgba(255,230,0,0.06);
+    border: 1px solid rgba(255,230,0,0.3);
+    border-radius: 8px;
+    color: var(--accent3);
+    font-family: 'Orbitron', monospace;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    cursor: pointer;
+    user-select: none;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 12px rgba(255,230,0,0.3);
+    margin-top: 6px;
+    width: 100%;
+    max-width: 400px;
+    padding: 0 16px;
+    touch-action: none;
+  }
+  #launch-btn:active {
+    background: rgba(255,230,0,0.15);
+  }
+
+  #life-dot {
+    display: inline-block;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--accent3);
+    box-shadow: 0 0 8px var(--accent3);
+    vertical-align: middle;
+    margin-left: 4px;
+  }
+  #life-dot.dead {
+    background: rgba(255,255,255,0.1);
+    box-shadow: none;
+  }
+</style>
+</head>
+<body>
+<div id="wrapper">
+  <h1>Casse&#8209;Brique</h1>
+
+  <div id="hud">
+    <div>SCORE <strong id="score-val">0</strong></div>
+    <div>BRIQUES <strong id="brick-val">0</strong></div>
+    <div>VIE <span id="life-dot"></span></div>
+  </div>
+
+  <div id="canvas-wrap">
+    <canvas id="c"></canvas>
+    <div id="overlay">
+      <div id="overlay-title">—</div>
+      <div id="overlay-msg"></div>
+      <div id="code-reveal">45F69S16P</div>
+      <button id="btn">REJOUER</button>
+    </div>
+  </div>
+
+  <!-- Boutons tactiles -->
+  <div id="controls">
+    <div class="ctrl-btn" id="btn-left">◀</div>
+    <div class="ctrl-btn" id="btn-right">▶</div>
+  </div>
+  <div id="launch-btn">TOUCHER POUR LANCER ▲</div>
+</div>
+
+<script>
+// ── Responsive canvas sizing ──
+const canvasWrap = document.getElementById('canvas-wrap');
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+const COLS = 8, ROWS = 6;
+let W, H, PADDLE_W, PADDLE_H, PADDLE_Y, BALL_R;
+let BRICK_W, BRICK_H, BRICK_PAD_X, BRICK_PAD_Y, BRICK_TOP, BRICK_LEFT;
+let scale = 1;
+
+function resize() {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+
+  // Reserve space for HUD + controls
+  const hudH = 90;
+  const ctrlH = 140;
+  const maxW = Math.min(vw - 8, 480);
+  const maxH = vh - hudH - ctrlH;
+
+  W = maxW;
+  H = Math.min(maxH, maxW * 1.1);
+  H = Math.max(H, 260);
+
+  canvas.width  = W;
+  canvas.height = H;
+  canvasWrap.style.width  = W + 'px';
+  canvasWrap.style.height = H + 'px';
+
+  scale = W / 360;
+
+  PADDLE_W = Math.round(80 * scale);
+  PADDLE_H = Math.round(10 * scale);
+  PADDLE_Y = H - Math.round(40 * scale);
+  BALL_R   = Math.max(6, Math.round(7 * scale));
+
+  BRICK_PAD_X = Math.round(4 * scale);
+  BRICK_PAD_Y = Math.round(4 * scale);
+  BRICK_TOP   = Math.round(36 * scale);
+  BRICK_LEFT  = Math.round(6 * scale);
+  BRICK_W = Math.floor((W - BRICK_LEFT * 2 - BRICK_PAD_X * (COLS - 1)) / COLS);
+  BRICK_H = Math.max(12, Math.round(14 * scale));
+
+  if (state) rebuildBricks();
+}
+
+const ROW_COLORS = [
+  ['#ff2d6f','#ff5588'],
+  ['#ff7a00','#ffaa44'],
+  ['#ffe600','#fff176'],
+  ['#00f5d4','#66fff0'],
+  ['#00aaff','#66ccff'],
+  ['#aa55ff','#cc99ff'],
+];
+
+let state;
+
+function makeBricks() {
+  const bricks = [];
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const x = BRICK_LEFT + c * (BRICK_W + BRICK_PAD_X);
+      const y = BRICK_TOP  + r * (BRICK_H + BRICK_PAD_Y);
+      bricks.push({ x, y, w: BRICK_W, h: BRICK_H, alive: true, row: r });
+    }
+  }
+  return bricks;
+}
+
+function rebuildBricks() {
+  state.bricks.forEach((b, i) => {
+    const r = Math.floor(i / COLS);
+    const c = i % COLS;
+    b.x = BRICK_LEFT + c * (BRICK_W + BRICK_PAD_X);
+    b.y = BRICK_TOP  + r * (BRICK_H + BRICK_PAD_Y);
+    b.w = BRICK_W; b.h = BRICK_H;
+  });
+  state.paddleX = W / 2 - PADDLE_W / 2;
+  if (!state.launched) {
+    state.ball.x = W / 2;
+    state.ball.y = PADDLE_Y - BALL_R - 2;
+  }
+}
+
+function initState() {
+  resize();
+  return {
+    paddleX: W / 2 - PADDLE_W / 2,
+    ball: { x: W / 2, y: PADDLE_Y - BALL_R - 2, vx: 2.8 * scale, vy: -3.8 * scale },
+    bricks: makeBricks(),
+    score: 0,
+    lives: 1,
+    launched: false,
+    over: false,
+    won: false,
+  };
+}
+
+state = initState();
+
+// ── Controls ──
+let moveDir = 0; // -1 left, 0 none, 1 right
+let touchX = null;
+
+// Touch drag on canvas
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  touchX = e.touches[0].clientX;
+  if (!state.launched && !state.over) launch();
+}, { passive: false });
+
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const tx = e.touches[0].clientX - rect.left;
+  state.paddleX = tx - PADDLE_W / 2;
+  state.paddleX = Math.max(0, Math.min(W - PADDLE_W, state.paddleX));
+}, { passive: false });
+
+canvas.addEventListener('touchend', e => { e.preventDefault(); }, { passive: false });
+
+// Arrow buttons
+const btnLeft  = document.getElementById('btn-left');
+const btnRight = document.getElementById('btn-right');
+const launchBtn = document.getElementById('launch-btn');
+
+function holdStart(dir) { moveDir = dir; }
+function holdEnd()   { moveDir = 0; }
+
+['touchstart','mousedown'].forEach(ev => {
+  btnLeft.addEventListener(ev,  e => { e.preventDefault(); holdStart(-1); btnLeft.classList.add('pressed'); });
+  btnRight.addEventListener(ev, e => { e.preventDefault(); holdStart(1);  btnRight.classList.add('pressed'); });
+});
+['touchend','mouseup','mouseleave'].forEach(ev => {
+  btnLeft.addEventListener(ev,  () => { holdEnd(); btnLeft.classList.remove('pressed'); });
+  btnRight.addEventListener(ev, () => { holdEnd(); btnRight.classList.remove('pressed'); });
+});
+
+launchBtn.addEventListener('touchstart', e => { e.preventDefault(); if (!state.launched && !state.over) launch(); });
+launchBtn.addEventListener('click', () => { if (!state.launched && !state.over) launch(); });
+
+// Mouse support (desktop fallback)
+let mouseX = W / 2;
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  mouseX = e.clientX - rect.left;
+  state.paddleX = mouseX - PADDLE_W / 2;
+  state.paddleX = Math.max(0, Math.min(W - PADDLE_W, state.paddleX));
+});
+canvas.addEventListener('click', () => { if (!state.launched && !state.over) launch(); });
+
+function launch() {
+  state.launched = true;
+  const spd = 4 * scale;
+  state.ball.vx = spd * (Math.random() > 0.5 ? 0.7 : -0.7);
+  state.ball.vy = -spd;
+}
+
+// ── HUD ──
+function aliveBricks() { return state.bricks.filter(b => b.alive).length; }
+
+function updateHUD() {
+  document.getElementById('score-val').textContent = state.score;
+  document.getElementById('brick-val').textContent = aliveBricks();
+  document.getElementById('life-dot').classList.toggle('dead', state.lives < 1);
+}
+
+function showOverlay(won) {
+  const overlay = document.getElementById('overlay');
+  const title   = document.getElementById('overlay-title');
+  const msg     = document.getElementById('overlay-msg');
+  const code    = document.getElementById('code-reveal');
+  overlay.classList.add('visible');
+  if (won) {
+    title.textContent = 'VICTOIRE !';
+    title.className = 'win';
+    msg.innerHTML = 'Félicitations, tu as tout détruit !<br>Ton code secret est :';
+    code.style.display = 'block';
+  } else {
+    title.textContent = 'GAME OVER';
+    title.className = 'lose';
+    msg.innerHTML = 'Plus de balle en réserve.<br>Essaie encore !';
+    code.style.display = 'none';
+  }
+}
+
+document.getElementById('btn').addEventListener('click', () => {
+  document.getElementById('overlay').classList.remove('visible');
+  state = initState();
+  updateHUD();
+  loop();
+});
+
+// ── Draw ──
+function drawPaddle() {
+  const px = state.paddleX;
+  const grd = ctx.createLinearGradient(px, PADDLE_Y, px + PADDLE_W, PADDLE_Y);
+  grd.addColorStop(0, '#00f5d4'); grd.addColorStop(1, '#0088aa');
+  ctx.save();
+  ctx.shadowColor = '#00f5d4'; ctx.shadowBlur = 16;
+  ctx.fillStyle = grd;
+  ctx.beginPath();
+  ctx.roundRect(px, PADDLE_Y, PADDLE_W, PADDLE_H, 5);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawBall() {
+  const { x, y } = state.ball;
+  ctx.save();
+  ctx.shadowColor = '#ffe600'; ctx.shadowBlur = 20;
+  const grd = ctx.createRadialGradient(x - 2, y - 2, 1, x, y, BALL_R);
+  grd.addColorStop(0, '#fff9c4'); grd.addColorStop(1, '#ffe600');
+  ctx.fillStyle = grd;
+  ctx.beginPath();
+  ctx.arc(x, y, BALL_R, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawBricks() {
+  state.bricks.forEach(b => {
+    if (!b.alive) return;
+    const [c1, c2] = ROW_COLORS[b.row];
+    ctx.save();
+    ctx.shadowColor = c1; ctx.shadowBlur = 7;
+    const grd = ctx.createLinearGradient(b.x, b.y, b.x, b.y + b.h);
+    grd.addColorStop(0, c2); grd.addColorStop(1, c1);
+    ctx.fillStyle = grd;
+    ctx.beginPath();
+    ctx.roundRect(b.x, b.y, b.w, b.h, 3);
+    ctx.fill();
+    ctx.restore();
+  });
+}
+
+function drawHint() {
+  if (!state.launched) {
+    ctx.save();
+    ctx.font = `${Math.round(11 * scale)}px "Share Tech Mono"`;
+    ctx.fillStyle = 'rgba(0,245,212,0.45)';
+    ctx.textAlign = 'center';
+    ctx.fillText('TOUCHER POUR LANCER', W / 2, PADDLE_Y - BALL_R - 18);
+    ctx.restore();
+  }
+}
+
+// ── Update ──
+const PADDLE_SPEED = 6;
+
+function update() {
+  if (state.over) return;
+
+  // Button movement
+  if (moveDir !== 0) {
+    state.paddleX += moveDir * PADDLE_SPEED * scale;
+    state.paddleX = Math.max(0, Math.min(W - PADDLE_W, state.paddleX));
+  }
+
+  if (!state.launched) {
+    state.ball.x = state.paddleX + PADDLE_W / 2;
+    state.ball.y = PADDLE_Y - BALL_R - 2;
+    return;
+  }
+
+  state.ball.x += state.ball.vx;
+  state.ball.y += state.ball.vy;
+
+  // Walls
+  if (state.ball.x - BALL_R < 0) { state.ball.x = BALL_R; state.ball.vx = Math.abs(state.ball.vx); }
+  if (state.ball.x + BALL_R > W) { state.ball.x = W - BALL_R; state.ball.vx = -Math.abs(state.ball.vx); }
+  if (state.ball.y - BALL_R < 0) { state.ball.y = BALL_R; state.ball.vy = Math.abs(state.ball.vy); }
+
+  // Paddle
+  if (
+    state.ball.vy > 0 &&
+    state.ball.y + BALL_R >= PADDLE_Y &&
+    state.ball.y - BALL_R <= PADDLE_Y + PADDLE_H &&
+    state.ball.x >= state.paddleX &&
+    state.ball.x <= state.paddleX + PADDLE_W
+  ) {
+    const rel = (state.ball.x - state.paddleX) / PADDLE_W - 0.5;
+    const spd = Math.hypot(state.ball.vx, state.ball.vy);
+    const angle = rel * Math.PI * 0.6;
+    state.ball.vx = spd * Math.sin(angle);
+    state.ball.vy = -Math.abs(spd * Math.cos(angle));
+    state.ball.y = PADDLE_Y - BALL_R;
+  }
+
+  // Lost
+  if (state.ball.y - BALL_R > H) {
+    state.lives--;
+    updateHUD();
+    if (state.lives <= 0) {
+      state.over = true;
+      showOverlay(false);
+      return;
+    }
+    state.ball.x = state.paddleX + PADDLE_W / 2;
+    state.ball.y = PADDLE_Y - BALL_R - 2;
+    state.ball.vx = 2.8 * scale;
+    state.ball.vy = -3.8 * scale;
+    state.launched = false;
+  }
+
+  // Bricks
+  state.bricks.forEach(b => {
+    if (!b.alive) return;
+    const bx = state.ball.x, by = state.ball.y;
+    const nearX = Math.max(b.x, Math.min(bx, b.x + b.w));
+    const nearY = Math.max(b.y, Math.min(by, b.y + b.h));
+    const dist = Math.hypot(bx - nearX, by - nearY);
+    if (dist < BALL_R) {
+      b.alive = false;
+      state.score += 10 * (ROWS - b.row);
+      updateHUD();
+      const overlapX = Math.min(Math.abs(bx - b.x), Math.abs(bx - (b.x + b.w)));
+      const overlapY = Math.min(Math.abs(by - b.y), Math.abs(by - (b.y + b.h)));
+      if (overlapX < overlapY) state.ball.vx *= -1;
+      else state.ball.vy *= -1;
+    }
+  });
+
+  if (aliveBricks() === 0) {
+    state.over = true;
+    showOverlay(true);
+  }
+}
+
+let rafId;
+function loop() {
+  if (rafId) cancelAnimationFrame(rafId);
+  function frame() {
+    ctx.clearRect(0, 0, W, H);
+    update();
+    drawBricks();
+    drawPaddle();
+    drawBall();
+    drawHint();
+    if (!state.over) rafId = requestAnimationFrame(frame);
+  }
+  frame();
+}
+
+window.addEventListener('resize', () => {
+  resize();
+  if (state) rebuildBricks();
+});
+
+updateHUD();
+loop();
+</script>
+</body>
+</html>
