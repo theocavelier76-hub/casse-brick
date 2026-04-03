@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CASSE-BRIQUE</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
+
+  :root {
+    --bg: #05050f;
+    --panel: #0a0a1a;
+    --accent: #00f5d4;
+    --accent2: #f5009b;
+    --accent3: #ffe600;
+    --text: #e0e0ff;
+    --grid: rgba(0,245,212,0.04);
+    --glow: 0 0 12px #00f5d4cc, 0 0 32px #00f5d455;
+    --glow2: 0 0 12px #f5009bcc, 0 0 32px #f5009b55;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      linear-gradient(rgba(0,245,212,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,245,212,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 0%, rgba(0,245,212,0.07) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  #wrapper {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  h1 {
+    font-family: 'Orbitron', monospace;
+    font-weight: 900;
+    font-size: 2rem;
+    letter-spacing: 0.3em;
+    color: var(--accent);
+    text-shadow: var(--glow);
+    text-transform: uppercase;
+  }
+
+  #hud {
+    display: flex;
+    gap: 40px;
+    font-size: 0.85rem;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+  }
+
+  #hud span {
+    opacity: 0.7;
+    color: var(--text);
+  }
+
+  #hud strong {
+    color: var(--accent3);
+    text-shadow: 0 0 8px var(--accent3);
+  }
+
+  #canvas-wrap {
+    position: relative;
+    border: 1px solid rgba(0,245,212,0.25);
+    box-shadow: 0 0 0 1px rgba(0,245,212,0.08), var(--glow), inset 0 0 60px rgba(0,0,0,0.8);
+  }
+
+  canvas {
+    display: block;
+    background: var(--panel);
+  }
+
+  #overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(5,5,15,0.88);
+    backdrop-filter: blur(4px);
+    gap: 20px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s;
+  }
+
+  #overlay.visible {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  #overlay-title {
+    font-family: 'Orbitron', monospace;
+    font-weight: 900;
+    font-size: 2.2rem;
+    letter-spacing: 0.2em;
+    text-align: center;
+  }
+
+  #overlay-title.win  { color: var(--accent);  text-shadow: var(--glow); }
+  #overlay-title.lose { color: var(--accent2); text-shadow: var(--glow2); }
+
+  #overlay-msg {
+    font-size: 0.9rem;
+    color: var(--text);
+    opacity: 0.75;
+    letter-spacing: 0.12em;
+    text-align: center;
+    line-height: 1.8;
+  }
+
+  #code-reveal {
+    font-family: 'Orbitron', monospace;
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: 0.3em;
+    color: var(--accent3);
+    text-shadow: 0 0 16px var(--accent3), 0 0 40px var(--accent3);
+    background: rgba(255,230,0,0.07);
+    border: 1px solid rgba(255,230,0,0.3);
+    padding: 14px 28px;
+    display: none;
+    animation: pulse-code 1.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse-code {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+
+  #btn {
+    font-family: 'Orbitron', monospace;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    padding: 12px 32px;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: var(--glow);
+  }
+
+  #btn:hover {
+    background: var(--accent);
+    color: var(--bg);
+    box-shadow: var(--glow), inset 0 0 20px rgba(255,255,255,0.1);
+  }
+
+  #life-bar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .life-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--accent3);
+    box-shadow: 0 0 8px var(--accent3);
+  }
+
+  .life-dot.dead {
+    background: rgba(255,255,255,0.1);
+    box-shadow: none;
+  }
+</style>
+</head>
+<body>
+
+<div id="wrapper">
+  <h1>Casse&#8209;Brique</h1>
+
+  <div id="hud">
+    <div>SCORE <strong id="score-val">0</strong></div>
+    <div>BRIQUE <strong id="brick-val">0</strong></div>
+    <div id="life-bar">
+      VIE
+      <div class="life-dot" id="life1"></div>
+    </div>
+  </div>
+
+  <div id="canvas-wrap">
+    <canvas id="c" width="540" height="420"></canvas>
+
+    <div id="overlay">
+      <div id="overlay-title">—</div>
+      <div id="overlay-msg"></div>
+      <div id="code-reveal">45F69S16P</div>
+      <button id="btn">REJOUER</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+const W = canvas.width, H = canvas.height;
+
+// Config
+const PADDLE_W = 90, PADDLE_H = 10, PADDLE_Y = H - 36;
+const BALL_R = 7;
+const ROWS = 6, COLS = 10;
+const BRICK_W = 48, BRICK_H = 16;
+const BRICK_PAD = 5;
+const BRICK_TOP = 48;
+
+// Colors per row
+const ROW_COLORS = [
+  ['#ff2d6f','#ff5588'],
+  ['#ff7a00','#ffaa44'],
+  ['#ffe600','#fff176'],
+  ['#00f5d4','#66fff0'],
+  ['#00aaff','#66ccff'],
+  ['#aa55ff','#cc99ff'],
+];
+
+let state;
+
+function initState() {
+  const bricks = [];
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const x = c * (BRICK_W + BRICK_PAD) + 14;
+      const y = r * (BRICK_H + BRICK_PAD) + BRICK_TOP;
+      bricks.push({ x, y, w: BRICK_W, h: BRICK_H, alive: true, row: r });
+    }
+  }
+
+  return {
+    paddleX: W / 2 - PADDLE_W / 2,
+    ball: { x: W / 2, y: PADDLE_Y - BALL_R - 2, vx: 3.2, vy: -4 },
+    bricks,
+    score: 0,
+    lives: 1,
+    running: false,
+    launched: false,
+    over: false,
+    won: false,
+  };
+}
+
+state = initState();
+
+// Input
+let mouseX = W / 2;
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  mouseX = e.clientX - rect.left;
+});
+canvas.addEventListener('click', () => {
+  if (!state.launched && !state.over) {
+    state.launched = true;
+    state.running = true;
+  }
+});
+
+function aliveBricks() { return state.bricks.filter(b => b.alive).length; }
+
+function updateHUD() {
+  document.getElementById('score-val').textContent = state.score;
+  document.getElementById('brick-val').textContent = aliveBricks();
+  document.getElementById('life1').classList.toggle('dead', state.lives < 1);
+}
+
+function showOverlay(won) {
+  const overlay = document.getElementById('overlay');
+  const title = document.getElementById('overlay-title');
+  const msg = document.getElementById('overlay-msg');
+  const code = document.getElementById('code-reveal');
+
+  overlay.classList.add('visible');
+
+  if (won) {
+    title.textContent = 'VICTOIRE !';
+    title.className = 'win';
+    msg.textContent = 'Félicitations, tu as détruit toutes les briques !\nTon code secret est :';
+    code.style.display = 'block';
+  } else {
+    title.textContent = 'GAME OVER';
+    title.className = 'lose';
+    msg.textContent = 'Tu n\'as plus de balle en réserve.\nEssaie encore !';
+    code.style.display = 'none';
+  }
+}
+
+function hideOverlay() {
+  document.getElementById('overlay').classList.remove('visible');
+}
+
+document.getElementById('btn').addEventListener('click', () => {
+  state = initState();
+  hideOverlay();
+  updateHUD();
+  loop();
+});
+
+// Drawing
+function drawPaddle() {
+  const px = state.paddleX;
+  const grd = ctx.createLinearGradient(px, PADDLE_Y, px + PADDLE_W, PADDLE_Y + PADDLE_H);
+  grd.addColorStop(0, '#00f5d4');
+  grd.addColorStop(1, '#0088aa');
+  ctx.save();
+  ctx.shadowColor = '#00f5d4';
+  ctx.shadowBlur = 18;
+  ctx.fillStyle = grd;
+  ctx.beginPath();
+  ctx.roundRect(px, PADDLE_Y, PADDLE_W, PADDLE_H, 5);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawBall() {
+  const { x, y } = state.ball;
+  ctx.save();
+  ctx.shadowColor = '#ffe600';
+  ctx.shadowBlur = 22;
+  const grd = ctx.createRadialGradient(x - 2, y - 2, 1, x, y, BALL_R);
+  grd.addColorStop(0, '#fff9c4');
+  grd.addColorStop(1, '#ffe600');
+  ctx.fillStyle = grd;
+  ctx.beginPath();
+  ctx.arc(x, y, BALL_R, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawBricks() {
+  state.bricks.forEach(b => {
+    if (!b.alive) return;
+    const [c1, c2] = ROW_COLORS[b.row];
+    ctx.save();
+    ctx.shadowColor = c1;
+    ctx.shadowBlur = 8;
+    const grd = ctx.createLinearGradient(b.x, b.y, b.x, b.y + b.h);
+    grd.addColorStop(0, c2);
+    grd.addColorStop(1, c1);
+    ctx.fillStyle = grd;
+    ctx.beginPath();
+    ctx.roundRect(b.x, b.y, b.w, b.h, 3);
+    ctx.fill();
+    ctx.restore();
+  });
+}
+
+function drawHint() {
+  if (!state.launched) {
+    ctx.save();
+    ctx.font = '13px "Share Tech Mono"';
+    ctx.fillStyle = 'rgba(0,245,212,0.5)';
+    ctx.textAlign = 'center';
+    ctx.fillText('CLIQUER POUR LANCER', W / 2, H / 2 + 60);
+    ctx.restore();
+  }
+}
+
+function update() {
+  if (!state.running || state.over) return;
+
+  // Move paddle
+  let targetX = mouseX - PADDLE_W / 2;
+  targetX = Math.max(0, Math.min(W - PADDLE_W, targetX));
+  state.paddleX += (targetX - state.paddleX) * 0.18;
+
+  if (!state.launched) {
+    state.ball.x = state.paddleX + PADDLE_W / 2;
+    return;
+  }
+
+  // Move ball
+  state.ball.x += state.ball.vx;
+  state.ball.y += state.ball.vy;
+
+  // Wall bounce
+  if (state.ball.x - BALL_R < 0) { state.ball.x = BALL_R; state.ball.vx *= -1; }
+  if (state.ball.x + BALL_R > W) { state.ball.x = W - BALL_R; state.ball.vx *= -1; }
+  if (state.ball.y - BALL_R < 0) { state.ball.y = BALL_R; state.ball.vy *= -1; }
+
+  // Paddle bounce
+  if (
+    state.ball.y + BALL_R >= PADDLE_Y &&
+    state.ball.y - BALL_R <= PADDLE_Y + PADDLE_H &&
+    state.ball.x >= state.paddleX &&
+    state.ball.x <= state.paddleX + PADDLE_W &&
+    state.ball.vy > 0
+  ) {
+    const rel = (state.ball.x - state.paddleX) / PADDLE_W - 0.5; // -0.5 to 0.5
+    const speed = Math.hypot(state.ball.vx, state.ball.vy);
+    const angle = rel * Math.PI * 0.65;
+    state.ball.vx = speed * Math.sin(angle);
+    state.ball.vy = -Math.abs(speed * Math.cos(angle));
+    state.ball.y = PADDLE_Y - BALL_R;
+  }
+
+  // Ball lost
+  if (state.ball.y - BALL_R > H) {
+    state.lives--;
+    updateHUD();
+    if (state.lives <= 0) {
+      state.over = true;
+      state.running = false;
+      showOverlay(false);
+      return;
+    }
+    // Reset ball
+    state.ball.x = state.paddleX + PADDLE_W / 2;
+    state.ball.y = PADDLE_Y - BALL_R - 2;
+    state.ball.vx = 3.2 * (Math.random() > 0.5 ? 1 : -1);
+    state.ball.vy = -4;
+    state.launched = false;
+    state.running = false;
+  }
+
+  // Brick collision
+  state.bricks.forEach(b => {
+    if (!b.alive) return;
+    const bx = state.ball.x, by = state.ball.y;
+    const nearX = Math.max(b.x, Math.min(bx, b.x + b.w));
+    const nearY = Math.max(b.y, Math.min(by, b.y + b.h));
+    const dist = Math.hypot(bx - nearX, by - nearY);
+    if (dist < BALL_R) {
+      b.alive = false;
+      state.score += 10 * (ROWS - b.row);
+      updateHUD();
+      // Which side?
+      const overlapX = Math.min(bx - b.x, b.x + b.w - bx);
+      const overlapY = Math.min(by - b.y, b.y + b.h - by);
+      if (overlapX < overlapY) state.ball.vx *= -1;
+      else state.ball.vy *= -1;
+    }
+  });
+
+  // Win?
+  if (aliveBricks() === 0) {
+    state.over = true;
+    state.won = true;
+    state.running = false;
+    showOverlay(true);
+  }
+}
+
+let rafId;
+function loop() {
+  if (rafId) cancelAnimationFrame(rafId);
+  function frame() {
+    ctx.clearRect(0, 0, W, H);
+    update();
+    drawBricks();
+    drawPaddle();
+    drawBall();
+    drawHint();
+    updateHUD();
+    if (!state.over) rafId = requestAnimationFrame(frame);
+  }
+  state.running = true;
+  frame();
+}
+
+updateHUD();
+loop();
+</script>
+</body>
+</html>
